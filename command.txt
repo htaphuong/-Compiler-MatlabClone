@@ -1,0 +1,4 @@
+java -cp jflex.jar jflex.Main scannerMat.jlex
+java -cp javacup.jar java_cup.Main parserMat.cup
+javac -classpath jflex.jar;javacup.jar *.java
+java -classpath .;jflex.jar;javacup.jar Main input.txt

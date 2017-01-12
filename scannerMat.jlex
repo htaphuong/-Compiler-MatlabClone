@@ -1,0 +1,145 @@
+/* --------------------------Usercode Section------------------------ */
+   
+import java_cup.runtime.*;
+
+/*--------- Custom Class-------*/
+class IntTokenVal{
+	int val;
+	
+	IntTokenVal(int val){
+		this.val = val;
+	}
+}
+
+class StringTokenVal{
+	String val;
+	
+	StringTokenVal(String val){
+		this.val = val;
+	}
+}
+
+  
+%%   
+/* -----------------Options and Declarations Section----------------- */   
+%class Lexer
+
+/*
+  The current line number can be accessed with the variable yyline
+  and the current column number with the variable yycolumn.
+*/
+%line
+%column
+
+%cup
+   
+/* Declarations */
+%{   
+    /* To create a new java_cup.runtime.Symbol with information about
+       the current token, the token will have no value in this
+       case. */
+    private Symbol symbol(int type) {
+        return new Symbol(type, yyline, yycolumn);
+    }
+    
+    /* Also creates a new java_cup.runtime.Symbol with information
+       about the current token, but this object has a value. */
+    private Symbol symbol(int type, Object value) {
+        return new Symbol(type, yyline, yycolumn, value);
+    }
+%}
+   
+
+/* Macro Declarations */
+   
+LineTerminator 	= \r|\n|\r\n|[\r\n]*
+WhiteSpace     	= [ \t\f]
+Space			= {LineTerminator}|{WhiteSpace}
+dec_int_lit = 0 | [1-9][0-9]*
+dec_int_id 	= [A-Za-z_][A-Za-z_0-9]*
+string_lit 	= \"[A-Za-z_0-9]*\"
+
+comment		= "%"[^\n]* ~\n+
+eclipsis 	= "."".""." ~\n+
+
+if_tok 		= [iI][fF]
+else_tok 	= [eE][lL][sS][eE]
+elseif_tok 	= [eE][lL][sS][eE][iI][fF]
+end_tok		= [eE][nN][dD]
+
+for_tok		= [fF][oO][rR]
+while_tok	= [wW][hH][iI][lL][eE]
+
+ans_tok		= [aA][nN][sS]
+pi_tok		= [pP][iI]
+  
+%%
+/* ------------------------Lexical Rules Section---------------------- */
+   
+
+   
+/* YYINITIAL is the state at which the lexer begins scanning.  So
+   these regular expressions will only be matched if the scanner is in
+   the start state YYINITIAL. */
+   
+<YYINITIAL> {
+   
+    ";"                	{return symbol(sym.SEMI); }
+	":"					{return symbol(sym.COLON); }
+	","					{return symbol(sym.COMMA); }
+   
+//  "+"                { System.out.println("+"); return symbol(sym.PLUS); }
+	"+"                	{ return symbol(sym.PLUS); }
+    "-"                	{ return symbol(sym.MINUS); }
+    "*"                	{ return symbol(sym.TIMES); }
+	"^"					{ return symbol(sym.POWER); }
+    "/"                	{ return symbol(sym.DIVIDE); }
+    "("                	{ return symbol(sym.LPAREN); }
+    ")"                	{ return symbol(sym.RPAREN); }
+   
+// 	"="					{System.out.println("="); return symbol(sym.ASSIGN);}
+	"="					{return symbol(sym.ASSIGN);}
+	"|"					{return symbol(sym.OR);}
+	"&"					{return symbol(sym.AND);}
+	
+	"=="				{return symbol(sym.EQ_OP);}
+	"~="				{return symbol(sym.NE_OP);}
+	"<"					{return symbol(sym.L_OP);}
+	">"					{return symbol(sym.G_OP);}
+	"<="				{return symbol(sym.LE_OP);}
+	">="				{return symbol(sym.GE_OP);}
+	
+	{if_tok}			{return symbol(sym.IF); }
+	{else_tok}			{return symbol(sym.ELSE); }
+	{elseif_tok}		{return symbol(sym.ELSEIF); }
+	{end_tok}			{return symbol(sym.END); }
+	
+	{for_tok}			{ System.out.println(yytext()); return symbol(sym.FOR); }
+//	{for_tok}			{ return symbol(sym.FOR); }
+	{while_tok}			{ return symbol(sym.WHILE); }
+	
+	{ans_tok}			{ return symbol(sym.ANS); }
+	{pi_tok}			{ return symbol(sym.PI); }
+	
+//	{dec_int_lit}      	{ System.out.println(yytext()); return symbol(sym.NUMBER, new Float(yytext())); }
+	{dec_int_lit}      	{ return symbol(sym.NUMBER, new Float(yytext())); }
+  
+//    {dec_int_id}       	{ System.out.println(yytext()); return symbol(sym.IDENTIFIER, new String(yytext())); }
+    {dec_int_id}       	{ return symbol(sym.IDENTIFIER, new String(yytext())); }
+						 
+	{string_lit}		{ return symbol(sym.STRING_LITERAL, new String(yytext())); }
+   
+    /* Don't do anything if whitespace is found */
+    {WhiteSpace}       	{ /* just skip what was found, do nothing */ }
+	{eclipsis}			{ /* nothing*/}
+	{comment}			{ /* nothing*/}
+	
+//	{LineTerminator}	{System.out.println("CR"); return symbol(sym.CR);}
+	{LineTerminator}	{ return symbol(sym.CR);}
+
+	//{Space}				{return symbol(sym.SPACE);}
+}
+
+/* No token was found for the input so through an error.  Print out an
+   Illegal character message with the illegal character that was found. */
+[^]                    { throw new Error("Illegal character <"+yytext()+">"); }

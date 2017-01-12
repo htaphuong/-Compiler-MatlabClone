@@ -1,0 +1,519 @@
+/* ----------------------Preliminary Declarations Section--------------------*/
+   
+/* Import the class java_cup.runtime.*  */
+import java_cup.runtime.*;
+
+import java.util.HashMap;
+
+/* Action code for user's java code */
+action code {:
+	String ans = "ANS";
+	HashMap var = new HashMap();
+	float pi = 3.14f;
+	
+	public void printVar(Object key){
+		String mKey = (String) key;
+		if (checkVar(mKey)){
+			System.out.println(mKey + " = " + var.get(mKey));
+		}
+	}
+	
+	public boolean checkVar(Object key){
+		String mKey = (String) key;
+		if (!var.containsKey(mKey)){
+			System.out.println("'" + mKey + "' undefined");
+			return false;
+		}
+		
+		return true;
+	}
+	
+	static class MySym {
+		static String plus = "+";
+		static String minus = "-";
+		static String mul = "*";
+		static String div = "/";
+		static String pow = "^";
+		
+		static String l_op = "<";
+		static String g_op = ">";
+		static String le_op = "<=";
+		static String ge_op = ">=";
+		
+		static String eq_op = "==";
+		static String ne_op = "~=";
+		
+		static String and = "&";
+		static String or = "|";
+		
+	}
+:};
+   
+/* Parser code to change the way the parser reports errors (include
+   line and column number of the error). */
+parser code {:
+    
+    /* Change the method report_error so it will display the line and
+       column of where the error occurred in the input as well as the
+       reason for the error which is passed into the method in the
+       String 'message'. */
+    public void report_error(String message, Object info) {
+   
+        StringBuilder m = new StringBuilder("Error");
+   
+        /* Check if the information passed to the method is the same
+           type as the type java_cup.runtime.Symbol. */
+        if (info instanceof java_cup.runtime.Symbol) {
+            java_cup.runtime.Symbol s = ((java_cup.runtime.Symbol) info);
+   
+            if (s.left >= 0) {                
+                /* Add to the end of the StringBuilder error message
+                   the line number of the error in the input. */
+                m.append(" in line "+(s.left+1));   
+                if (s.right >= 0)                    
+                    /* Add to the end of the StringBuilder error message
+                       the column number of the error in the input. */
+                    m.append(", column "+(s.right+1));
+            }
+        }
+   
+        m.append(" : "+message);
+   
+        System.err.println(m);
+    }
+   
+    /* Change the method report_fatal_error so when it reports a fatal
+       error it will display the line and column number of where the
+       fatal error occurred in the input as well as the reason for the
+       fatal error which is passed into the method in the object
+       'message' and then exit.*/
+    public void report_fatal_error(String message, Object info) {
+        report_error(message, info);
+        System.exit(1);
+    }
+:};
+   
+
+   
+/* ------------Declaration of Terminals and Non Terminals Section----------- */
+   
+/* Terminals (tokens returned by the scanner).  */
+terminal           	SEMI; 
+terminal			COLON;
+terminal 			COMMA;
+
+terminal			PLUS; 
+terminal			MINUS; 
+terminal			TIMES; 
+terminal			DIVIDE;
+terminal			UPLUS;
+terminal			UMINUS; 
+terminal			POWER;
+terminal			LPAREN; 
+terminal			RPAREN;
+
+terminal			ASSIGN;
+terminal			OR;
+terminal			AND;
+
+terminal			EQ_OP;
+terminal			NE_OP;
+terminal			L_OP;
+terminal			G_OP;
+terminal			LE_OP;
+terminal			GE_OP;
+
+terminal 			IF;
+terminal			ELSE;
+terminal 			ELSEIF;
+terminal			END;
+
+terminal			FOR;
+terminal			WHILE;
+
+terminal			ANS;
+terminal 			PI;
+
+terminal					CR;
+terminal 					SPACE;
+terminal Float  			NUMBER;
+terminal String				IDENTIFIER;
+terminal String				STRING_LITERAL;
+   
+/* Non terminals used in the grammar section.  */
+non terminal Object     expr_list, expr_part;
+non terminal Integer    expr, factor, term;
+
+
+non terminal Program						program;
+non terminal StatementList					statement_list;
+non terminal Statement						statement;
+non terminal AssignmentStatement			assignment_statement;
+non terminal SelectionStatement				selection_statement;
+non terminal ForStatement					for_statement;
+non terminal WhileStatement					while_statement;
+non terminal 								elseif_clause;
+
+non terminal								eostmt;
+non terminal Expression						expression;
+non terminal Reference						reference; 
+non terminal List							list;
+ 
+/* Precedence */
+precedence left EQ_OP, NE_OP;
+precedence left OR;
+precedence left AND;
+precedence left L_OP, LE_OP, G_OP, GE_OP;
+precedence left PLUS, MINUS;
+precedence left TIMES,DIVIDE;
+precedence left UMINUS, UPLUS;
+precedence left POWER;
+ 
+start with program;  
+
+/* -------------Precedence and Associatively of Terminals Section----------- */
+   
+/*
+  Precedence of non terminals could be defined here.  If you do define
+  precedence here you won't need to worry about precedence in the
+  Grammar Section, i.e. that TIMES should have a higher precedence
+  than PLUS.
+  
+  The precedence defined here would look something like this where the
+  lower line always will have higher precedence than the line before it.
+   
+  precedence left PLUS, MINUS; 
+  precedence left TIMES, DIVIDE; 
+*/
+
+
+/* ----------------------------Grammar Section-------------------- */
+   
+program ::= 	statement_list:sl
+				{:
+					//System.out.println("Program new");
+					Program p = new Program(sl);
+					p.run(var);
+				:}
+				;
+		
+statement_list ::= 	statement:s eostmt
+						{: 
+							//System.out.println("StaList new");
+							RESULT = new StatementList(s,var); 
+						:}
+					//|
+					//statement:s SEMI
+					//	{: RESULT = new StatementList(s,var); :}
+					| statement_list:sl statement:s eostmt 
+						{: 
+							if (s != null){
+								//System.out.println("StaList add");
+								sl.add(s);
+							}
+							RESULT = sl;
+						:}
+					//| eostmt
+					; 		
+
+eostmt ::=	SEMI CR
+				{:
+					//System.out.println("SEMI");
+				:}
+			|
+			CR
+			;
+
+statement ::= 	//IDENTIFIER
+				//	{:
+				//		System.out.println("statement -> reference -> ID");
+				//	:}
+				//| 
+				//eostmt
+				//	{:
+				//		System.out.println("statement -> CR");
+				//	:}
+				//|
+				assignment_statement:a
+					{: 
+						//System.out.println("statement -> assignemnt");
+						RESULT = a; 
+					:}
+				| expression:e
+					{: 
+						//System.out.println("statement -> expression " + e.getValue());
+						RESULT = e;
+					:}
+				| selection_statement:s
+					{:
+						//System.out.println("statement -> selection");
+						RESULT = s;
+					:}
+				| for_statement:f
+					{:
+						//System.out.println("statement -> for");
+						RESULT = f;
+					:}
+				| while_statement:w
+					{:
+						//System.out.println("statement -> while");
+						RESULT = w;
+					:}
+				| list: l
+					{:
+						//System.out.println("statement -> list");
+						RESULT = l;
+					:}
+				;
+
+
+assignment_statement ::=	reference:r ASSIGN expression:e
+								{: 
+									// printVar(a.getValue());
+									// var.put(ans,a.getValue());
+									RESULT = new AssignmentStatement(r,e,var);
+									//printVar("a");
+								:}
+							|
+							reference:r ASSIGN list:l
+								{:
+									RESULT = new AssignmentStatement(r,l,var);
+								:}
+							;
+							
+reference ::= 	IDENTIFIER:i
+					{: RESULT = new Reference(i,var); :}
+				|
+				ANS:a
+					{: RESULT = new Reference("ans",var); :}
+				;
+
+list ::= 	expression:e1 COLON expression:e2
+					{: RESULT = new List(e1,e2); :}
+			| expression:e1 COLON expression:e2 COLON expression:e3
+					{: RESULT = new List(e1,e2,e3); :}
+			;
+				
+expression ::=		LPAREN expression:e RPAREN
+						{: RESULT = new Expression(e,var); :}
+					| PLUS expression:e
+						{: RESULT = new Expression(e,MySym.plus,var); :}
+					%prec UPLUS					
+					| MINUS expression:e
+						{: RESULT = new Expression(e,MySym.minus,var); :}
+					%prec UMINUS
+					| expression:e1 POWER expression:e2
+						{: RESULT = new Expression(e1,e2,MySym.pow,var); :}
+					| expression:e1 TIMES expression:e2
+						{: RESULT = new Expression(e1,e2,MySym.mul,var); :}
+					| expression:e1 DIVIDE expression:e2
+						{: RESULT = new Expression(e1,e2,MySym.div,var); :}
+					| expression:e1 PLUS expression:e2
+						{: RESULT = new Expression(e1,e2,MySym.plus,var); :}
+					| expression:e1 MINUS expression:e2
+						{: RESULT = new Expression(e1,e2,MySym.minus,var); :}
+					| expression:e1 L_OP expression:e2
+						{: RESULT = new Expression(e1,e2,MySym.l_op,var); :}
+					| expression:e1 LE_OP expression:e2
+						{: RESULT = new Expression(e1,e2,MySym.le_op,var); :}
+					| expression:e1 G_OP expression:e2
+						{: RESULT = new Expression(e1,e2,MySym.g_op,var); :}
+					| expression:e1 GE_OP expression:e2
+						{: RESULT = new Expression(e1,e2,MySym.ge_op,var); :}
+					| expression:e1 OR expression:e2
+						{: RESULT = new Expression(e1,e2,MySym.or,var); :}
+					| expression:e1 AND expression:e2
+						{: RESULT = new Expression(e1,e2,MySym.and,var); :}
+					| expression:e1 EQ_OP expression:e2
+						{: RESULT = new Expression(e1,e2,MySym.eq_op,var); :}
+					| expression:e1 NE_OP expression:e2
+						{: RESULT = new Expression(e1,e2,MySym.ne_op,var); :}
+					| reference:r
+						{: RESULT = new Expression(r,var); :}
+					| NUMBER:n
+						{: RESULT = new Expression(n,var); :}
+					| PI
+						{: RESULT = new Expression(pi,var); :}
+					;
+							
+selection_statement ::= 
+			IF expression:e eostmt statement_list:sl END
+				{: RESULT = new SelectionStatement(e,sl); :}
+			| IF expression:e eostmt statement_list:sl1 ELSE CR statement_list:sl2 END
+				{: RESULT = new SelectionStatement(e,sl1,sl2); :}
+			;
+
+for_statement ::=
+			FOR assignment_statement:a eostmt statement_list:sl END
+			{: 	
+				//for (int i = 0; i <2 ; ++i)
+				RESULT = new ForStatement(a,sl,var);  
+				//var.remove(i);
+			:}
+			;
+
+while_statement ::= 			
+			WHILE expression:e eostmt statement_list:sl END
+			{: 	
+				//for (int i = 0; i <2 ; ++i)
+				RESULT = new WhileStatement(e,sl,var);  
+				//var.remove(i);
+			:}
+			;
+
+/*			
+expression_statement ::=	eostmt							
+							| SEMI
+							expression:e CR
+								{: 
+									//System.out.println(e.getValue());
+									//var.put(ans,e.getValue());
+									RESULT = new expressionStatement(e,true);
+								:}
+							| expression:e SEMI
+								{:
+									//var.put(ans,e.getValue());
+									RESULT = new expressionStatement(e,false);
+								:}
+							;
+*/
+
+/*
+assignment_statement ::=	assignment_expression:a
+								{: 
+									// printVar(a.getValue());
+									// var.put(ans,a.getValue());
+									RESULT = new AssignmentStatement(a,true);
+								:}
+							;
+
+							
+expression_statement ::=	
+							expression:e
+								{: 
+									//System.out.println(e.getValue());
+									//var.put(ans,e.getValue());
+									RESULT = new expressionStatement(e,true);
+								:}
+							;
+*/
+/*							
+eostmt ::=	//COMMA
+			//|
+			CR
+			;
+
+assignment_expression ::= 	IDENTIFIER:i ASSIGN expression:e
+								{:
+									//var.put(i,e.getValue());
+									//RESULT = new Assignmentexpression(i);
+									RESULT = new Assignmentexpression(i,e.getValue(),var);
+								:}	
+							;
+
+expression ::= 
+*/							
+							
+/*							
+expression ::=	or_expression:o
+					{: RESULT = new expression(o.getValue()); :}
+				;
+
+or_expression ::=	and_expression:a
+						{: RESULT = new Orexpression(a.getValue()); :}
+					| or_expression:o OR and_expression:a
+						{: RESULT = new Orexpression(o.getValue(),a.getValue(),MySym.or); :}
+					;
+
+and_expression ::=			equality_expression:e
+								{: RESULT = new Andexpression(e.getValue()); :}
+							| and_expression:a AND equality_expression:e
+								{: RESULT = new Andexpression(a.getValue(),e.getValue(),MySym.and); :}
+							;
+		
+equality_expression ::=		relational_expression:r
+								{: RESULT = new Equalityexpression(r.getValue()); :}
+							| equality_expression:e EQ_OP relational_expression:r
+								{: RESULT = new Equalityexpression(e.getValue(),r.getValue(),MySym.eq_op); :}
+							| equality_expression:e NE_OP relational_expression:r
+								{: RESULT = new Equalityexpression(e.getValue(),r.getValue(),MySym.ne_op); :}
+							;
+
+relational_expression ::=	additive_expression:a
+								{: RESULT = new Relationalexpression(a.getValue()); :}
+							| relational_expression:r L_OP additive_expression:a
+								{: RESULT = new Relationalexpression(r.getValue(),a.getValue(),MySym.l_op); :}
+							| relational_expression:r G_OP additive_expression:a
+								{: RESULT = new Relationalexpression(r.getValue(),a.getValue(),MySym.g_op); :}
+							| relational_expression:r LE_OP additive_expression:a
+								{: RESULT = new Relationalexpression(r.getValue(),a.getValue(),MySym.le_op); :}
+							| relational_expression:r GE_OP additive_expression:a
+								{: RESULT = new Relationalexpression(r.getValue(),a.getValue(),MySym.ge_op); :}
+							;
+additive_expression ::=		multiplicative_expression:m
+								{: RESULT = new Additiveexpression(m.getValue()); :}
+							| additive_expression:a PLUS multiplicative_expression:m
+								{: RESULT = new Additiveexpression(a.getValue(),m.getValue(),MySym.plus); :}
+							| additive_expression:a MINUS multiplicative_expression:m
+								{: RESULT = new Additiveexpression(a.getValue(),m.getValue(),MySym.minus); :}
+							;
+
+multiplicative_expression ::=	unary_expression:u
+									{: RESULT = new Multiplicativeexpression(u.getValue()); :}
+								| multiplicative_expression:m TIMES unary_expression:u
+									{: RESULT = new Multiplicativeexpression(m.getValue(),u.getValue(),MySym.mul); :}
+								| multiplicative_expression:m DIVIDE unary_expression:u
+									{: RESULT = new Multiplicativeexpression(m.getValue(),u.getValue(),MySym.div); :}
+								;
+
+unary_expression ::=	postfix_expression:p
+							{: RESULT = new Unaryexpression(p.getValue()); :}
+						| unary_operator postfix_expression
+						;
+
+postfix_expression ::=	primary_expression:p
+							{: RESULT = new Postfixexpression(p.getValue()); :}
+						;
+
+primary_expression ::=	IDENTIFIER:i
+							{: 
+								if (checkVar(i))
+									RESULT = new Primaryexpression(var.get(i)); 
+							:}
+						|  NUMBER: n
+							{: RESULT = new Primaryexpression(n); :}
+						| STRING_LITERAL:s
+							{: RESULT = new Primaryexpression(s); :}		
+						| LPAREN expression:e RPAREN
+							{: RESULT = new Primaryexpression(e.getValue()); :}
+						;		
+
+unary_operator ::= 		PLUS
+						{: RESULT = new String(MySym.plus); :}
+						| MINUS
+						{: RESULT = new String(MySym.minus); :}
+						;
+*/
+/*-----------------------------------------------*/
+/*
+selection_statement ::=
+		IF expression:e statement_list:s END eostmt 
+        | IF expression statement_list ELSE statement_list END eostmt
+        | IF expression statement_list elseif_clause END eostmt
+        | IF expression statement_list elseif_clause
+          ELSE statement_list END eostmt
+        ;
+
+elseif_clause ::=
+		ELSEIF expression statement_list
+		| elseif_clause ELSEIF expression statement_list
+        ;
+*/
+/*
+iteration_statement ::= 
+		WHILE expression statement_list END eostmt
+        | FOR IDENTIFIER EQ_OP expression statement_list END eostmt
+        | FOR LPAREN IDENTIFIER EQ_OP expression RPAREN statement_list END eostmt 
+        ;
+*/
+						
